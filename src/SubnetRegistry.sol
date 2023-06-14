@@ -8,9 +8,18 @@ import "./lib/SubnetIDHelper.sol";
 contract SubnetRegistry {
     using SubnetIDHelper for SubnetID;
 
+    uint64 constant LIST_SUBNETS_PAGE_SIZE = 10;
+
+    struct SubnetStoreInfo {
+        address addr;
+        uint64 index;
+    }
+
     /// @notice Mapping that tracks the deployed subnet actors. 
     /// Key is the hash of Subnet ID, values are addresses.
-    mapping(bytes32 => address) public subnets;
+    mapping(bytes32 => SubnetStoreInfo) public subnets;
+
+    SubnetID[] private subnetIDs;
 
     address public gateway;
 
@@ -18,6 +27,7 @@ contract SubnetRegistry {
     event SubnetDeployed(address subnetAddr, SubnetID subnetId);
 
     error NotSameGateway();
+    error SubnetsOutOfBound();
 
     constructor(address _gateway) {
         gateway = _gateway;
@@ -31,15 +41,33 @@ contract SubnetRegistry {
         SubnetID memory id = _params.parentId.createSubnetId(subnetAddr);
 
         bytes32 subnetHash = id.toHash();
-        subnets[subnetHash] = subnetAddr;
+        subnets[subnetHash].addr = subnetAddr;
+        subnets[subnetHash].index = uint64(subnetIDs.length);
+
+        subnetIDs.push(id);
 
         emit SubnetDeployed(subnetAddr, id);
     }
 
     function subnetAddress(SubnetID calldata _subnetId) external view returns(address subnet) {
         bytes32 subnetHash = _subnetId.toHash();
-        subnet = subnets[subnetHash];
+        subnet = subnets[subnetHash].addr;
 
         require(subnet != address(0), "Not exists");
+    }
+
+    function listSubnets(uint64 _page) external view returns(SubnetID[] memory) {
+        uint64 start = _page * LIST_SUBNETS_PAGE_SIZE;
+        if (start >= subnetIDs.length) { revert SubnetsOutOfBound(); }
+
+        uint64 end = (_page + 1) * LIST_SUBNETS_PAGE_SIZE;
+        if (end >= subnetIDs.length) { end = uint64(subnetIDs.length); }
+
+        SubnetID[] memory results = new SubnetID[](end - start);
+        for (uint64 i = 0; i < (end - start); i++) {
+            results[i] = subnetIDs[i + start];
+        }
+
+        return results;
     }
 }
