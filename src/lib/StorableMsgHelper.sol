@@ -14,8 +14,8 @@ library StorableMsgHelper {
     bytes32 public constant EMPTY_STORABLE_MESSAGE_HASH = keccak256(
         abi.encode(
             StorableMsg({
-                from: IPCAddress({subnetId: SubnetID(new address[](0)), rawAddress: address(0)}),
-                to: IPCAddress({subnetId: SubnetID(new address[](0)), rawAddress: address(0)}),
+                from: IPCAddress({subnetId: SubnetID(0, new address[](0)), rawAddress: address(0)}),
+                to: IPCAddress({subnetId: SubnetID(0, new address[](0)), rawAddress: address(0)}),
                 value: 0,
                 nonce: 0,
                 method: METHOD_SEND,
@@ -34,11 +34,10 @@ library StorableMsgHelper {
         SubnetID memory currentParentSubnet = currentSubnet.commonParent(toSubnet);
         SubnetID memory messageParentSubnet = fromSubnet.commonParent(toSubnet);
 
-        if (
-            currentParentSubnet.equals(messageParentSubnet)
-                && fromSubnet.route.length > messageParentSubnet.route.length
-        ) {
-            return IPCMsgType.BottomUp;
+        if (currentParentSubnet.equals(messageParentSubnet)) {
+            if (fromSubnet.route.length > messageParentSubnet.route.length) {
+                return IPCMsgType.BottomUp;
+            }
         }
 
         return IPCMsgType.TopDown;
